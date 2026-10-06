@@ -1,6 +1,8 @@
 import streamlit as st
 from utils.file_loader import load_dataset, FileLoadError
+from utils.llm import LLMError
 from tools.data_tools import profile_dataset
+from agents.simple_qa import simple_answer
 
 st.set_page_config(page_title="InsightFlow", page_icon="📊", layout="wide")
 
@@ -16,34 +18,39 @@ if uploaded_file is not None:
 
         profile = profile_dataset(df)
 
-        st.subheader("Dataset Profile")
-        c1, c2, c3, c4 = st.columns(4)
-        c1.metric("Rows", profile["rows"])
-        c2.metric("Columns", profile["columns"])
-        c3.metric("Duplicate rows", profile["duplicate_rows"])
-        c4.metric("Columns with missing values", len(profile["missing_values"]))
+        with st.expander("Dataset Profile", expanded=False):
+            c1, c2, c3, c4 = st.columns(4)
+            c1.metric("Rows", profile["rows"])
+            c2.metric("Columns", profile["columns"])
+            c3.metric("Duplicate rows", profile["duplicate_rows"])
+            c4.metric("Columns with missing values", len(profile["missing_values"]))
 
-        left, right = st.columns(2)
-        with left:
-            st.markdown("**Numeric columns**")
-            st.write(profile["numeric_columns"] or "None")
-            st.markdown("**Date columns**")
-            st.write(profile["date_columns"] or "None")
-        with right:
-            st.markdown("**Categorical columns**")
-            st.write(profile["categorical_columns"] or "None")
-            st.markdown("**Missing values**")
-            st.write(profile["missing_values"] or "None")
+            left, right = st.columns(2)
+            with left:
+                st.markdown("**Numeric columns**")
+                st.write(", ".join(profile["numeric_columns"]) or "None")
+                st.markdown("**Date columns**")
+                st.write(", ".join(profile["date_columns"]) or "None")
+            with right:
+                st.markdown("**Categorical columns**")
+                st.write(", ".join(profile["categorical_columns"]) or "None")
+                st.markdown("**Missing values**")
+                st.write(profile["missing_values"] or "None")
 
-        with st.expander("Data types"):
-            st.json(profile["dtypes"])
+        with st.expander("Preview"):
+            st.dataframe(df.head(10), use_container_width=True)
 
-        if profile["numeric_stats"]:
-            with st.expander("Basic statistics"):
-                st.dataframe(df[profile["numeric_columns"]].describe().round(2))
+        st.subheader("Ask a question")
+        question = st.text_input("Example: What is the total revenue?")
 
-        st.subheader("Preview")
-        st.dataframe(df.head(10), use_container_width=True)
+        if st.button("Ask") and question.strip():
+            with st.spinner("Thinking..."):
+                try:
+                    answer = simple_answer(question, profile)
+                    st.markdown("**Plain LLM answer (no tools):**")
+                    st.write(answer)
+                except LLMError as e:
+                    st.error(str(e))
     except FileLoadError as e:
         st.error(str(e))
 else:
