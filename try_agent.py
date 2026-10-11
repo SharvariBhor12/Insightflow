@@ -7,9 +7,12 @@ from agents.analyst_agent import run_agent
 df = pd.read_csv("data/sales_2024.csv")
 question = " ".join(sys.argv[1:]) or "Which region has the highest total revenue?"
 
-answer, messages, charts = run_agent(df, question)
+answer, messages, charts, plan = run_agent(df, question)
 
-print("=== TOOL TRAIL ===")
+print("=== PLAN ===")
+print(plan)
+
+print("\n=== TOOL TRAIL ===")
 for m in messages:
     if getattr(m, "tool_calls", None):
         for c in m.tool_calls:
